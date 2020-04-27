@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:buscador_gifs/ui/gif_page.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
+import 'package:share/share.dart';
+import 'package:transparent_image/transparent_image.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -15,10 +18,10 @@ class _HomePageState extends State<HomePage> {
     Response response;
     if (_search == null) {
       response = await get(
-          "https://api.giphy.com/v1/gifs/trending?api_key=Dn29mEVPIhAkd7JqSZlncFq1y28ErUrR&limit=10&rating=R");
+          "https://api.giphy.com/v1/gifs/trending?api_key=Dn29mEVPIhAkd7JqSZlncFq1y28ErUrR&limit=9&rating=R");
     } else {
       response = await get(
-          "https://api.giphy.com/v1/gifs/search?api_key=Dn29mEVPIhAkd7JqSZlncFq1y28ErUrR&q=$_search&limit=10&offset=0&rating=G&lang=en");
+          "https://api.giphy.com/v1/gifs/search?api_key=Dn29mEVPIhAkd7JqSZlncFq1y28ErUrR&q=$_search&limit=9&offset=${_offset}&rating=G&lang=en");
     }
     return json.decode(response.body);
   }
@@ -29,6 +32,14 @@ class _HomePageState extends State<HomePage> {
     _getGifs().then((map) {
       print(map);
     });
+  }
+
+  int _getCount(List data) {
+    if (_search == null) {
+      return data.length;
+    } else {
+      return data.length + 1;
+    }
   }
 
   @override
@@ -55,6 +66,12 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.white,
                 fontSize: 18,
               ),
+              onSubmitted: (text) {
+                setState(() {
+                  _search = text;
+                  _offset = 0;
+                });
+              },
             ),
           ),
           Expanded(
@@ -90,20 +107,63 @@ class _HomePageState extends State<HomePage> {
 
   Widget _createGifTable(BuildContext context, AsyncSnapshot snapshot) {
     return GridView.builder(
+      padding: EdgeInsets.all(8.0),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10.0,
         mainAxisSpacing: 10.0,
       ),
-      itemCount: snapshot.data["data"].length,
+      itemCount: _getCount(snapshot.data["data"]),
       itemBuilder: (context, index) {
-        return GestureDetector(
-          child: Image.network(
-            snapshot.data["data"][index]["images"]["fixed_height"]["url"],
-            height: 300,
-            fit: BoxFit.cover,
-          ),
-        );
+        if (_search == null || index < snapshot.data["data"].length) {
+          return GestureDetector(
+            child: Stack(
+              children: <Widget>[
+                Center(
+                  child: Icon(Icons.access_time, color: Colors.white,),
+                ),
+                FadeInImage.memoryNetwork(
+                  placeholder: kTransparentImage,
+                  image: snapshot.data["data"][index]["images"]["fixed_height"]
+                      ["url"],
+                  height: 300,
+                  fit: BoxFit.cover,
+                )
+              ],
+            ),
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          GifPage(snapshot.data["data"][index])));
+            },
+            onLongPress: () {
+              Share.share(snapshot.data["data"][index]["images"]["fixed_height"]
+                  ["url"]);
+            },
+          );
+        } else {
+          return Container(
+            child: GestureDetector(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(Icons.add_box, color: Colors.white, size: 40),
+                  Text(
+                    "carregar mais",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+              onTap: () {
+                setState(() {
+                  _offset += 9;
+                });
+              },
+            ),
+          );
+        }
       },
     );
   }
